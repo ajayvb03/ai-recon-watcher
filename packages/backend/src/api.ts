@@ -64,3 +64,47 @@ export async function getRecentCaptures(sdk: SDK, limit: number = 50): Promise<C
   );
   return stmt.all<CaptureRow>(safeLimit);
 }
+
+export type TargetDomain = {
+  host: string;
+  added_at: string;
+};
+
+/**
+ * Accepts either a bare hostname ("example.com") or a full URL
+ * ("https://example.com/chat?x=1") and extracts just the hostname.
+ * No dependency on a runtime URL implementation being available.
+ */
+function parseHost(input: string): string | undefined {
+  const trimmed = input.trim();
+  if (!trimmed) return undefined;
+  const withoutScheme = trimmed.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, "");
+  const host = withoutScheme.split(/[/?#:]/)[0]?.toLowerCase();
+  return host || undefined;
+}
+
+export async function getTargetDomains(sdk: SDK): Promise<TargetDomain[]> {
+  const db = await getInitializedDb(sdk);
+  const stmt = await db.prepare("SELECT host, added_at FROM target_domains ORDER BY added_at ASC");
+  return stmt.all<TargetDomain>();
+}
+
+export async function addTargetDomain(sdk: SDK, input: string): Promise<TargetDomain[]> {
+  const host = parseHost(input);
+  if (!host) {
+    throw new Error(`Could not parse a hostname from "${input}"`);
+  }
+  const db = await getInitializedDb(sdk);
+  const stmt = await db.prepare(
+    "INSERT INTO target_domains (host, added_at) VALUES (?, ?) ON CONFLICT(host) DO NOTHING",
+  );
+  await stmt.run(host, new Date().toISOString());
+  return getTargetDomains(sdk);
+}
+
+export async function removeTargetDomain(sdk: SDK, host: string): Promise<TargetDomain[]> {
+  const db = await getInitializedDb(sdk);
+  const stmt = await db.prepare("DELETE FROM target_domains WHERE host = ?");
+  await stmt.run(host);
+  return getTargetDomains(sdk);
+}

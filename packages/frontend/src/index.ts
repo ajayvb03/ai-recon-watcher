@@ -1,15 +1,16 @@
-import { capturesLog, endpointsTable, statCard, STYLES } from "./render";
+import { capturesLog, endpointsTable, statCard, STYLES, targetDomainsSection } from "./render";
 import type { FrontendSDK } from "./types";
 
 async function renderDashboard(sdk: FrontendSDK, container: HTMLElement) {
   container.innerHTML = "<p class=\"arw-empty\">Loading...</p>";
 
-  let summary, endpoints, captures;
+  let summary, endpoints, captures, domains;
   try {
-    [summary, endpoints, captures] = await Promise.all([
+    [summary, endpoints, captures, domains] = await Promise.all([
       sdk.backend.getSummary(),
       sdk.backend.getEndpoints(),
       sdk.backend.getRecentCaptures(50),
+      sdk.backend.getTargetDomains(),
     ]);
   } catch (err) {
     sdk.log.error(`[ai-recon-watcher] failed to load dashboard data: ${String(err)}`);
@@ -30,6 +31,37 @@ async function renderDashboard(sdk: FrontendSDK, container: HTMLElement) {
   header.appendChild(refreshBtn);
 
   container.appendChild(header);
+
+  const domainSection = targetDomainsSection(domains);
+
+  const addDomain = async () => {
+    const value = domainSection.input.value.trim();
+    if (!value) return;
+    try {
+      await sdk.backend.addTargetDomain(value);
+      renderDashboard(sdk, container);
+    } catch (err) {
+      sdk.log.error(`[ai-recon-watcher] failed to add target domain: ${String(err)}`);
+    }
+  };
+  domainSection.addButton.addEventListener("click", addDomain);
+  domainSection.input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") addDomain();
+  });
+  domainSection.list.addEventListener("click", async (e) => {
+    const target = e.target as HTMLElement;
+    const removeBtn = target.closest<HTMLElement>(".arw-domain-remove");
+    const host = removeBtn?.dataset.host;
+    if (host) {
+      try {
+        await sdk.backend.removeTargetDomain(host);
+        renderDashboard(sdk, container);
+      } catch (err) {
+        sdk.log.error(`[ai-recon-watcher] failed to remove target domain: ${String(err)}`);
+      }
+    }
+  });
+  container.appendChild(domainSection.element);
 
   const stats = document.createElement("div");
   stats.className = "arw-stats";

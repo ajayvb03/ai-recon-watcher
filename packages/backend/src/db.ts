@@ -60,6 +60,13 @@ export async function initSchema(db: Database): Promise<void> {
       PRIMARY KEY (host, method, path)
     );
   `);
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS target_domains (
+      host TEXT PRIMARY KEY,
+      added_at TEXT
+    );
+  `);
 }
 
 export async function insertCapture(

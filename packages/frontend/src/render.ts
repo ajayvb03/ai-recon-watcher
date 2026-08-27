@@ -1,4 +1,69 @@
-import type { CaptureRow, EndpointRow } from "backend";
+import type { CaptureRow, EndpointRow, TargetDomain } from "backend";
+
+export type TargetDomainsHandle = {
+  element: HTMLElement;
+  input: HTMLInputElement;
+  addButton: HTMLButtonElement;
+  list: HTMLElement;
+};
+
+export function targetDomainsSection(domains: TargetDomain[]): TargetDomainsHandle {
+  const wrapper = document.createElement("div");
+  wrapper.className = "arw-section";
+
+  const title = document.createElement("h3");
+  title.textContent = "Target Scope";
+  wrapper.appendChild(title);
+
+  const hint = document.createElement("p");
+  hint.className = "arw-empty";
+  hint.textContent =
+    "Only traffic to these hosts is captured and analyzed. Add every host the chatbot uses - the web frontend and its API backend are often different domains.";
+  wrapper.appendChild(hint);
+
+  const row = document.createElement("div");
+  row.className = "arw-domain-input-row";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "arw-domain-input";
+  input.placeholder = "example.com or https://example.com/chat";
+  row.appendChild(input);
+
+  const addButton = document.createElement("button");
+  addButton.className = "arw-refresh";
+  addButton.textContent = "Add";
+  row.appendChild(addButton);
+
+  wrapper.appendChild(row);
+
+  const list = document.createElement("div");
+  list.className = "arw-domain-list";
+
+  if (domains.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "arw-empty";
+    empty.textContent = "No target domains configured - nothing is being captured yet.";
+    list.appendChild(empty);
+  } else {
+    for (const d of domains) {
+      const chip = document.createElement("span");
+      chip.className = "arw-domain-chip";
+      const hostText = document.createElement("span");
+      hostText.textContent = d.host;
+      chip.appendChild(hostText);
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "arw-domain-remove";
+      removeBtn.dataset.host = d.host;
+      removeBtn.textContent = "×";
+      chip.appendChild(removeBtn);
+      list.appendChild(chip);
+    }
+  }
+  wrapper.appendChild(list);
+
+  return { element: wrapper, input, addButton, list };
+}
 
 export function statCard(label: string, value: number): HTMLElement {
   const card = document.createElement("div");
@@ -225,4 +290,45 @@ export const STYLES = `
     padding: 8px;
     border-radius: 4px;
   }
+  #plugin--ai-recon-watcher .arw-domain-input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  #plugin--ai-recon-watcher .arw-domain-input {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(128,128,128,0.4);
+    background: transparent;
+    color: inherit;
+    font-size: 13px;
+  }
+  #plugin--ai-recon-watcher .arw-domain-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #plugin--ai-recon-watcher .arw-domain-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.4);
+    border-radius: 999px;
+    padding: 4px 6px 4px 12px;
+    font-size: 12px;
+    font-family: monospace;
+  }
+  #plugin--ai-recon-watcher .arw-domain-remove {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 999px;
+  }
+  #plugin--ai-recon-watcher .arw-domain-remove:hover { background: rgba(128,128,128,0.25); }
 `;
