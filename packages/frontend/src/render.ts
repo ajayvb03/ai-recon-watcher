@@ -1,4 +1,4 @@
-import type { CaptureRow, EndpointRow, TargetDomain } from "backend";
+import type { CaptureRow, EndpointRow, SkillRow, TargetDomain } from "backend";
 
 export type TargetDomainsHandle = {
   element: HTMLElement;
@@ -146,6 +146,88 @@ export function endpointsTable(rows: EndpointRow[]): HTMLElement {
             <td>${r.ai_related ? '<span class="arw-badge">AI</span>' : ""}</td>
             <td>${formatDate(r.first_seen)}</td>
             <td>${formatDate(r.last_seen)}</td>
+          </tr>
+        `,
+          )
+          .join("")}
+      </tbody>
+    `;
+    tableContainer.appendChild(table);
+  };
+
+  search.addEventListener("input", () => renderRows(search.value));
+  renderRows("");
+
+  return wrapper;
+}
+
+export function skillsTable(rows: SkillRow[]): HTMLElement {
+  const wrapper = document.createElement("div");
+  wrapper.className = "arw-section";
+
+  const title = document.createElement("h3");
+  title.textContent = "Skills / Tools Map (agent capability surface)";
+  wrapper.appendChild(title);
+
+  if (rows.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "arw-empty";
+    empty.textContent =
+      "No tool/function/skill invocations detected yet - populated when the model's responses contain OpenAI/Anthropic-style function calls, MCP tools/call messages, or a custom tool/skill/action field.";
+    wrapper.appendChild(empty);
+    return wrapper;
+  }
+
+  const search = document.createElement("input");
+  search.type = "text";
+  search.className = "arw-search";
+  search.placeholder = "Filter by skill name or host...";
+  wrapper.appendChild(search);
+
+  const tableContainer = document.createElement("div");
+  wrapper.appendChild(tableContainer);
+
+  const renderRows = (query: string) => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter(
+          (r) => r.skill_name.toLowerCase().includes(q) || r.host.toLowerCase().includes(q),
+        )
+      : rows;
+
+    tableContainer.innerHTML = "";
+    if (filtered.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "arw-empty";
+      empty.textContent = "No skills match your filter.";
+      tableContainer.appendChild(empty);
+      return;
+    }
+
+    const table = document.createElement("table");
+    table.className = "arw-table";
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Skill / Tool</th>
+          <th>Host</th>
+          <th>Calls</th>
+          <th>First seen</th>
+          <th>Last seen</th>
+          <th>Last arguments</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtered
+          .map(
+            (r) => `
+          <tr>
+            <td><span class="arw-method">${escapeHtml(r.skill_name)}</span></td>
+            <td>${escapeHtml(r.host)}</td>
+            <td>${r.call_count}</td>
+            <td>${formatDate(r.first_seen)}</td>
+            <td>${formatDate(r.last_seen)}</td>
+            <td class="arw-muted">${escapeHtml(r.last_args)}</td>
           </tr>
         `,
           )

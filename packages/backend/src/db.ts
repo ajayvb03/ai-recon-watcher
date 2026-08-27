@@ -67,6 +67,18 @@ export async function initSchema(db: Database): Promise<void> {
       added_at TEXT
     );
   `);
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS skills_seen (
+      host TEXT,
+      skill_name TEXT,
+      first_seen TEXT,
+      last_seen TEXT,
+      call_count INTEGER,
+      last_args TEXT,
+      PRIMARY KEY (host, skill_name)
+    );
+  `);
 }
 
 export async function insertCapture(
@@ -119,4 +131,22 @@ export async function upsertEndpoint(
       ai_related = MAX(ai_related, excluded.ai_related)
   `);
   await stmt.run(host, method, path, timestamp, timestamp, aiRelated ? 1 : 0);
+}
+
+export async function upsertSkill(
+  db: Database,
+  host: string,
+  skillName: string,
+  timestamp: string,
+  lastArgs: string,
+) {
+  const stmt = await db.prepare(`
+    INSERT INTO skills_seen (host, skill_name, first_seen, last_seen, call_count, last_args)
+    VALUES (?, ?, ?, ?, 1, ?)
+    ON CONFLICT(host, skill_name) DO UPDATE SET
+      last_seen = excluded.last_seen,
+      call_count = call_count + 1,
+      last_args = excluded.last_args
+  `);
+  await stmt.run(host, skillName, timestamp, timestamp, lastArgs);
 }

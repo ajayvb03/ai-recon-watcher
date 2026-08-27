@@ -1,17 +1,18 @@
-import { capturesLog, endpointsTable, statCard, STYLES, targetDomainsSection } from "./render";
+import { capturesLog, endpointsTable, skillsTable, statCard, STYLES, targetDomainsSection } from "./render";
 import { buildMarkdownReport, downloadText } from "./report";
 import type { FrontendSDK } from "./types";
 
 async function renderDashboard(sdk: FrontendSDK, container: HTMLElement) {
   container.innerHTML = "<p class=\"arw-empty\">Loading...</p>";
 
-  let summary, endpoints, captures, domains;
+  let summary, endpoints, captures, domains, skills;
   try {
-    [summary, endpoints, captures, domains] = await Promise.all([
+    [summary, endpoints, captures, domains, skills] = await Promise.all([
       sdk.backend.getSummary(),
       sdk.backend.getEndpoints(),
       sdk.backend.getRecentCaptures(50),
       sdk.backend.getTargetDomains(),
+      sdk.backend.getSkills(),
     ]);
   } catch (err) {
     sdk.log.error(`[ai-recon-watcher] failed to load dashboard data: ${String(err)}`);
@@ -46,6 +47,7 @@ async function renderDashboard(sdk: FrontendSDK, container: HTMLElement) {
       domains,
       endpoints,
       captures,
+      skills,
     });
     downloadText(`ai-recon-watcher-report-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.md`, report);
   });
@@ -107,6 +109,7 @@ async function renderDashboard(sdk: FrontendSDK, container: HTMLElement) {
   stats.appendChild(statCard("Total Captures", summary.totalCaptures));
   stats.appendChild(statCard("Endpoints Discovered", summary.totalEndpoints));
   stats.appendChild(statCard("AI-Related Endpoints", summary.aiRelatedEndpoints));
+  stats.appendChild(statCard("Skills/Tools Seen", skills.length));
   container.appendChild(stats);
 
   const note = document.createElement("p");
@@ -116,6 +119,7 @@ async function renderDashboard(sdk: FrontendSDK, container: HTMLElement) {
   container.appendChild(note);
 
   container.appendChild(endpointsTable(endpoints));
+  container.appendChild(skillsTable(skills));
   container.appendChild(capturesLog(captures));
 }
 

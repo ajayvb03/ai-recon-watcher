@@ -61,6 +61,77 @@ function findRobotsSpam(text: string): string[] {
   return SPAM_ROBOTS_KEYWORDS.filter((kw) => low.includes(kw));
 }
 
+export type ToolCallHit = {
+  name: string;
+  argsSummary: string;
+};
+
+const TOOL_NAME_KEYS = ["tool_name", "tool", "skill", "skill_name", "action"];
+const TOOL_ARGS_KEYS = ["arguments", "input", "parameters", "args"];
+const MAX_TOOL_SCAN_DEPTH = 8;
+
+/**
+ * Recursively scans a parsed JSON body for tool/function/skill invocation
+ * shapes - the model calling out to a tool is exactly the kind of
+ * self-describing agent-capability signal that's valuable to map, per the
+ * same logic that makes MCP tool schemas "free recon": the model itself
+ * names the capability, no guessing required. Covers:
+ *   - OpenAI-style: { type: "function", function: { name, arguments } }
+ *   - OpenAI legacy: { function_call: { name, arguments } }
+ *   - Anthropic-style: { type: "tool_use", name, input }
+ *   - MCP JSON-RPC: { method: "tools/call", params: { name, arguments } }
+ *   - Generic custom agents: a name-ish field (tool/skill/action) with a
+ *     sibling arguments-ish field (input/parameters/args)
+ */
+function findToolCalls(node: unknown, depth = 0, results: ToolCallHit[] = []): ToolCallHit[] {
+  if (depth > MAX_TOOL_SCAN_DEPTH || node === null || typeof node !== "object") {
+    return results;
+  }
+
+  if (Array.isArray(node)) {
+    for (const item of node) findToolCalls(item, depth + 1, results);
+    return results;
+  }
+
+  const obj = node as Record<string, unknown>;
+  const push = (name: unknown, args: unknown) => {
+    if (typeof name === "string" && name.length > 0) {
+      results.push({ name, argsSummary: JSON.stringify(args ?? null).slice(0, 500) });
+    }
+  };
+
+  if (obj.type === "function" && obj.function && typeof obj.function === "object") {
+    const fn = obj.function as Record<string, unknown>;
+    push(fn.name, fn.arguments);
+  }
+
+  if (obj.function_call && typeof obj.function_call === "object") {
+    const fc = obj.function_call as Record<string, unknown>;
+    push(fc.name, fc.arguments);
+  }
+
+  if (obj.type === "tool_use") {
+    push(obj.name, obj.input);
+  }
+
+  if (obj.method === "tools/call" && obj.params && typeof obj.params === "object") {
+    const params = obj.params as Record<string, unknown>;
+    push(params.name, params.arguments);
+  }
+
+  const nameKey = TOOL_NAME_KEYS.find((k) => typeof obj[k] === "string");
+  if (nameKey) {
+    const argsKey = TOOL_ARGS_KEYS.find((k) => k in obj);
+    push(obj[nameKey], argsKey ? obj[argsKey] : undefined);
+  }
+
+  for (const value of Object.values(obj)) {
+    findToolCalls(value, depth + 1, results);
+  }
+
+  return results;
+}
+
 export function analyzeExchange(
   request: Request,
   response: Response,
@@ -205,6 +276,18 @@ export function analyzeExchange(
     }
   }
 
+  const toolCalls = findToolCalls(parsedBody);
+  const seenToolNames = new Set<string>();
+  for (const call of toolCalls) {
+    if (seenToolNames.has(call.name)) continue;
+    seenToolNames.add(call.name);
+    findings.push({
+      title: `AI tool/skill invoked: ${call.name} on ${host}`,
+      description: `Arguments observed: ${call.argsSummary}`,
+      dedupeKey: `${host}-skill-${call.name}`,
+    });
+  }
+
   const data = {
     request: {
       method,
@@ -225,7 +308,8 @@ export function analyzeExchange(
 
   return {
     data,
-    aiRelated: isAiRelated || isMlEndpoint || hasAiHeaders,
+    aiRelated: isAiRelated || isMlEndpoint || hasAiHeaders || toolCalls.length > 0,
     findings,
+    toolCalls,
   };
 }

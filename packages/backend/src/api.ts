@@ -66,14 +66,34 @@ export async function getRecentCaptures(sdk: SDK, limit: number = 50): Promise<C
   return stmt.all<CaptureRow>(safeLimit);
 }
 
+export type SkillRow = {
+  host: string;
+  skill_name: string;
+  first_seen: string;
+  last_seen: string;
+  call_count: number;
+  last_args: string;
+};
+
+export async function getSkills(sdk: SDK): Promise<SkillRow[]> {
+  const db = await getInitializedDb(sdk);
+  const stmt = await db.prepare(
+    `SELECT host, skill_name, first_seen, last_seen, call_count, last_args
+     FROM skills_seen ORDER BY last_seen DESC LIMIT 200`,
+  );
+  return stmt.all<SkillRow>();
+}
+
 /**
- * Wipes accumulated capture/endpoint data. Does NOT touch target_domains -
- * the configured scope is an engagement setting, not data to reset.
+ * Wipes accumulated capture/endpoint/skill data. Does NOT touch
+ * target_domains - the configured scope is an engagement setting, not data
+ * to reset.
  */
 export async function clearCapturedData(sdk: SDK): Promise<void> {
   const db = await getInitializedDb(sdk);
   await db.exec("DELETE FROM captures;");
   await db.exec("DELETE FROM endpoints_seen;");
+  await db.exec("DELETE FROM skills_seen;");
 }
 
 /**

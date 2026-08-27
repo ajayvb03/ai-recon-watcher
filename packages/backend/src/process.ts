@@ -2,7 +2,7 @@ import type { SDK } from "caido:plugin";
 import type { Request, Response } from "caido:utils";
 
 import { analyzeExchange } from "./analyze";
-import { getInitializedDb, insertCapture, upsertEndpoint } from "./db";
+import { getInitializedDb, insertCapture, upsertEndpoint, upsertSkill } from "./db";
 
 /**
  * Shared analyze-store-report path used by both the live traffic watcher
@@ -19,14 +19,19 @@ export async function processExchange(
   const responseBody = response.getBody();
   const responseBodyText = responseBody ? responseBody.toText() : "";
 
-  const { data, aiRelated, findings } = analyzeExchange(request, response, responseBodyText);
+  const { data, aiRelated, findings, toolCalls } = analyzeExchange(
+    request,
+    response,
+    responseBodyText,
+  );
 
   const createdAt = new Date().toISOString();
+  const host = request.getHost();
 
   await Promise.all([
     insertCapture(db, {
       requestId: String(request.getId()),
-      host: request.getHost(),
+      host,
       port: request.getPort(),
       method: request.getMethod(),
       path: request.getPath(),
@@ -36,14 +41,8 @@ export async function processExchange(
       createdAt,
       data,
     }),
-    upsertEndpoint(
-      db,
-      request.getHost(),
-      request.getMethod(),
-      request.getPath(),
-      createdAt,
-      aiRelated,
-    ),
+    upsertEndpoint(db, host, request.getMethod(), request.getPath(), createdAt, aiRelated),
+    ...toolCalls.map((call) => upsertSkill(db, host, call.name, createdAt, call.argsSummary)),
   ]);
 
   for (const finding of findings) {

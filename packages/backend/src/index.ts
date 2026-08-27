@@ -7,6 +7,7 @@ import {
   clearCapturedData,
   getEndpoints,
   getRecentCaptures,
+  getSkills,
   getSummary,
   getTargetDomains,
   removeTargetDomain,
@@ -19,6 +20,7 @@ export type API = DefineAPI<{
   getSummary: typeof getSummary;
   getEndpoints: typeof getEndpoints;
   getRecentCaptures: typeof getRecentCaptures;
+  getSkills: typeof getSkills;
   getTargetDomains: typeof getTargetDomains;
   addTargetDomain: typeof addTargetDomain;
   removeTargetDomain: typeof removeTargetDomain;
@@ -49,6 +51,7 @@ export function init(sdk: SDK<API>) {
   sdk.api.register("getSummary", getSummary);
   sdk.api.register("getEndpoints", getEndpoints);
   sdk.api.register("getRecentCaptures", getRecentCaptures);
+  sdk.api.register("getSkills", getSkills);
   sdk.api.register("getTargetDomains", getTargetDomains);
   sdk.api.register("addTargetDomain", addTargetDomain);
   sdk.api.register("removeTargetDomain", removeTargetDomain);

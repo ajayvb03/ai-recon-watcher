@@ -1,4 +1,4 @@
-import type { CaptureRow, EndpointRow, TargetDomain } from "backend";
+import type { CaptureRow, EndpointRow, SkillRow, TargetDomain } from "backend";
 
 export function buildMarkdownReport(data: {
   totalCaptures: number;
@@ -7,6 +7,7 @@ export function buildMarkdownReport(data: {
   domains: TargetDomain[];
   endpoints: EndpointRow[];
   captures: CaptureRow[];
+  skills: SkillRow[];
 }): string {
   const lines: string[] = [];
   lines.push("# AI Recon Watcher Report");
@@ -43,6 +44,20 @@ export function buildMarkdownReport(data: {
     for (const e of data.endpoints) {
       lines.push(
         `| ${e.method} | ${e.path} | ${e.host} | ${e.hit_count} | ${e.ai_related ? "yes" : ""} | ${e.first_seen} | ${e.last_seen} |`,
+      );
+    }
+  }
+  lines.push("");
+
+  lines.push("## Skills / Tools Map (agent capability surface)");
+  if (data.skills.length === 0) {
+    lines.push("(none detected yet)");
+  } else {
+    lines.push("| Skill / Tool | Host | Calls | First seen | Last seen | Last arguments |");
+    lines.push("|---|---|---|---|---|---|");
+    for (const s of data.skills) {
+      lines.push(
+        `| ${s.skill_name} | ${s.host} | ${s.call_count} | ${s.first_seen} | ${s.last_seen} | ${s.last_args.replace(/\|/g, "\\|")} |`,
       );
     }
   }
