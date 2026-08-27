@@ -62,6 +62,53 @@ function findRobotsSpam(text: string): string[] {
   return SPAM_ROBOTS_KEYWORDS.filter((kw) => low.includes(kw));
 }
 
+/**
+ * A streamed chat response is NOT a single JSON document - it's a sequence
+ * of "data: {...}" lines (Server-Sent Events). A whole-body JSON.parse on
+ * one of these always throws, which silently skipped every JSON-based
+ * detection (skills, RAG fields, secrets-in-JSON) for exactly the kind of
+ * endpoint a modern streaming chatbot is most likely to use.
+ */
+function isSseBody(contentType: string, text: string): boolean {
+  if (/text\/event-stream/i.test(contentType)) return true;
+  return /(^|\n)\s*data:\s*/.test(text.slice(0, 500));
+}
+
+function parseSseDataChunks(text: string): unknown[] {
+  const chunks: unknown[] = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line.startsWith("data:")) continue;
+    const payload = line.slice(5).trim();
+    if (!payload || payload === "[DONE]") continue;
+    try {
+      chunks.push(JSON.parse(payload));
+    } catch {
+      // Not a JSON data chunk (plain-text token stream, keepalive, etc.) -
+      // fine to skip, JSON-based detection just doesn't apply to this line.
+    }
+  }
+  return chunks;
+}
+
+/**
+ * Returns every JSON value worth scanning in a body: for a plain JSON
+ * response/request that's a single-element array with the whole parsed
+ * body; for an SSE stream it's one element per "data:" chunk. Unifies the
+ * two shapes so downstream detection (findAiJsonFields, findToolCalls)
+ * doesn't need to know which kind of body it's looking at.
+ */
+function extractJsonNodes(contentType: string, text: string): unknown[] {
+  if (isSseBody(contentType, text)) {
+    return parseSseDataChunks(text);
+  }
+  try {
+    return [JSON.parse(text)];
+  } catch {
+    return [];
+  }
+}
+
 export type ToolCallHit = {
   name: string;
   argsSummary: string;
@@ -245,6 +292,9 @@ export function analyzeExchange(
       ? requestBodyText.slice(0, MAX_ANALYZE_BODY_CHARS)
       : requestBodyText;
 
+  const contentType = response.getHeader("content-type")?.[0] ?? "";
+  const requestContentType = request.getHeader("content-type")?.[0] ?? "";
+
   const secretHits = findSecrets(analyzedText);
   for (const secretType of secretHits) {
     findings.push({
@@ -254,14 +304,14 @@ export function analyzeExchange(
     });
   }
 
-  let parsedBody: unknown;
-  try {
-    parsedBody = JSON.parse(analyzedText);
-  } catch {
-    parsedBody = undefined;
-  }
+  // Handles both a plain single JSON body and an SSE token stream (one
+  // node per "data:" chunk) uniformly - see extractJsonNodes.
+  const responseJsonNodes = extractJsonNodes(contentType, analyzedText);
 
-  const aiFields = findAiJsonFields(parsedBody);
+  const aiFields: Record<string, unknown> = {};
+  for (const node of responseJsonNodes) {
+    Object.assign(aiFields, findAiJsonFields(node));
+  }
   const isAiRelated = Object.keys(aiFields).length > 0;
   // Bounded string form used for both the finding text and stored data -
   // matched field values could themselves contain large/sensitive payloads,
@@ -322,7 +372,6 @@ export function analyzeExchange(
     }
   }
 
-  const contentType = response.getHeader("content-type")?.[0] ?? "";
   const looksLikeJs = /javascript|ecmascript/i.test(contentType) || /\.js(?:$|[?#])/i.test(path);
   if (looksLikeJs) {
     const cryptoHits = CRYPTO_INDICATORS.filter((indicator) => analyzedText.includes(indicator));
@@ -342,17 +391,14 @@ export function analyzeExchange(
     }
   }
 
-  let parsedRequestBody: unknown;
-  try {
-    parsedRequestBody = JSON.parse(analyzedRequestText);
-  } catch {
-    parsedRequestBody = undefined;
-  }
+  // Request bodies are effectively never SSE themselves, but reusing the
+  // same extractor keeps request/response handling identical - it just
+  // resolves to a single-element array for a normal JSON request body.
+  const requestJsonNodes = extractJsonNodes(requestContentType, analyzedRequestText);
 
-  const toolCalls = [
-    ...findToolCalls(parsedRequestBody, "request"),
-    ...findToolCalls(parsedBody, "response"),
-  ];
+  const toolCalls: ToolCallHit[] = [];
+  for (const node of requestJsonNodes) findToolCalls(node, "request", 0, toolCalls);
+  for (const node of responseJsonNodes) findToolCalls(node, "response", 0, toolCalls);
   const seenToolNames = new Set<string>();
   for (const call of toolCalls) {
     if (seenToolNames.has(call.name)) continue;
