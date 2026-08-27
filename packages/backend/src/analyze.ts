@@ -69,7 +69,33 @@ export type ToolCallHit = {
 
 const TOOL_NAME_KEYS = ["tool_name", "tool", "skill", "skill_name", "action"];
 const TOOL_ARGS_KEYS = ["arguments", "input", "parameters", "args"];
+// Fields that hold a *list* of skill/tool names already used for this turn,
+// as either a native array or (very commonly, seen on real custom chat
+// backends like example.com's chatservice) a JSON-stringified array packed into a
+// string value, e.g. "useSkills": "[\"travel_web_search\", \"big_search\"]".
+const SKILLS_LIST_KEYS = [
+  "useSkills",
+  "usedSkills",
+  "skillsUsed",
+  "skills_used",
+  "toolsUsed",
+  "tools_used",
+  "usedTools",
+];
 const MAX_TOOL_SCAN_DEPTH = 8;
+
+function extractSkillListNames(value: unknown): string[] {
+  let arr: unknown = value;
+  if (typeof value === "string") {
+    try {
+      arr = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(arr)) return [];
+  return arr.filter((x): x is string => typeof x === "string" && x.length > 0);
+}
 
 /**
  * Recursively scans a parsed JSON body for tool/function/skill invocation
@@ -83,6 +109,8 @@ const MAX_TOOL_SCAN_DEPTH = 8;
  *   - MCP JSON-RPC: { method: "tools/call", params: { name, arguments } }
  *   - Generic custom agents: a name-ish field (tool/skill/action) with a
  *     sibling arguments-ish field (input/parameters/args)
+ *   - Skills-list fields: useSkills/toolsUsed/etc holding an array (or a
+ *     JSON-stringified array) of skill-name strings
  */
 function findToolCalls(node: unknown, depth = 0, results: ToolCallHit[] = []): ToolCallHit[] {
   if (depth > MAX_TOOL_SCAN_DEPTH || node === null || typeof node !== "object") {
@@ -109,6 +137,14 @@ function findToolCalls(node: unknown, depth = 0, results: ToolCallHit[] = []): T
   if (obj.function_call && typeof obj.function_call === "object") {
     const fc = obj.function_call as Record<string, unknown>;
     push(fc.name, fc.arguments);
+  }
+
+  for (const key of SKILLS_LIST_KEYS) {
+    if (key in obj) {
+      for (const name of extractSkillListNames(obj[key])) {
+        push(name, undefined);
+      }
+    }
   }
 
   if (obj.type === "tool_use") {

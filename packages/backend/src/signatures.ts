@@ -31,6 +31,7 @@ export const SECRET_PATTERNS: Record<string, RegExp> = {
 // targets without ever asking "what documents do you have".
 export const AI_JSON_FIELD_NAMES = new Set([
   "model",
+  "rag",
   "rag_enabled",
   "mcp_enabled",
   "provider",
