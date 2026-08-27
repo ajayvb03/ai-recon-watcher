@@ -2,16 +2,33 @@ import type { SDK } from "caido:plugin";
 import type { Database } from "sqlite";
 
 /**
- * Gets the plugin's database with the schema ensured to exist.
+ * Shared, memoized handle to the plugin's database.
  *
- * Not cached across calls: sdk.meta.db() and CREATE TABLE IF NOT EXISTS are
- * both cheap/idempotent, and NOT caching means a transient failure here
- * never permanently breaks capturing for the rest of the plugin's lifetime.
+ * This MUST be cached and shared across every call site (the traffic
+ * interceptor and all three dashboard RPC methods). Without sharing, each
+ * concurrent call (e.g. the dashboard's Promise.all of three RPC calls)
+ * independently opens its own connection and races to run
+ * CREATE TABLE IF NOT EXISTS against the same file at the same time,
+ * which throws SQLITE_BUSY ("database is locked").
+ *
+ * On failure the cache is cleared so a transient error doesn't permanently
+ * disable capturing for the rest of the plugin's lifetime - the next call
+ * gets a fresh attempt instead of reusing a rejected promise forever.
  */
+let dbPromise: Promise<Database> | undefined;
+
 export async function getInitializedDb(sdk: SDK): Promise<Database> {
-  const db = await sdk.meta.db();
-  await initSchema(db);
-  return db;
+  if (!dbPromise) {
+    dbPromise = (async () => {
+      const db = await sdk.meta.db();
+      await initSchema(db);
+      return db;
+    })().catch((err: unknown) => {
+      dbPromise = undefined;
+      throw err;
+    });
+  }
+  return dbPromise;
 }
 
 export async function initSchema(db: Database): Promise<void> {
