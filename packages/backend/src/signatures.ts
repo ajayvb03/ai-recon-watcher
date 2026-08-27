@@ -20,8 +20,15 @@ export const SECRET_PATTERNS: Record<string, RegExp> = {
   jwt: /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/,
   slack_token: /xox[baprs]-[0-9A-Za-z-]+/,
   stripe_live_key: /sk_live_[0-9A-Za-z]+/,
+  openai_api_key: /sk-[A-Za-z0-9]{20,}/,
+  anthropic_api_key: /sk-ant-[A-Za-z0-9_-]{20,}/,
+  private_key_pem: /-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----/,
 };
 
+// Plain model/provider disclosure fields, plus RAG source/citation metadata
+// fields - the latter is what let us map a target's knowledge-base structure
+// (document filenames, chunk IDs) during manual recon on examplecorp/examplelabs-style
+// targets without ever asking "what documents do you have".
 export const AI_JSON_FIELD_NAMES = new Set([
   "model",
   "rag_enabled",
@@ -31,7 +38,35 @@ export const AI_JSON_FIELD_NAMES = new Set([
   "llm",
   "llm_provider",
   "llm_model",
+  "sources",
+  "citations",
+  "retrieved_chunks",
+  "context_docs",
+  "documents",
+  "retrieval_info",
+  "grounding_documents",
 ]);
+
+// Indicators that a JS response implements client-side request
+// encryption/obfuscation - never a real confidentiality boundary since the
+// routine must ship in the same file, but useful to flag so a raw-payload
+// crawler/fuzzer knows it needs to reverse this before it can craft requests.
+export const CRYPTO_INDICATORS = [
+  "CryptoJS",
+  "JSEncrypt",
+  "node-forge",
+  "forge.min.js",
+  "RSA.encrypt",
+  "AES.encrypt",
+  "publicKeyPem",
+  "-----BEGIN PUBLIC KEY-----",
+  "sjcl.",
+];
+
+// Chatbot widget config objects embedded in JS - reveals internal API
+// endpoints/feature flags without needing to guess them.
+export const CHATBOT_CONFIG_PATTERN =
+  /window\.__[A-Z0-9_]*CONFIG[A-Z0-9_]*__|assistantEndpoint|chatWidget|apiBase\s*[:=]/i;
 
 export const ML_ENDPOINT_PATHS = [
   "/predict",

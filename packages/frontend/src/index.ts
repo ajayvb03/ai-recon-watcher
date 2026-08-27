@@ -1,4 +1,5 @@
 import { capturesLog, endpointsTable, statCard, STYLES, targetDomainsSection } from "./render";
+import { buildMarkdownReport, downloadText } from "./report";
 import type { FrontendSDK } from "./types";
 
 async function renderDashboard(sdk: FrontendSDK, container: HTMLElement) {
@@ -24,12 +25,50 @@ async function renderDashboard(sdk: FrontendSDK, container: HTMLElement) {
   header.className = "arw-header";
   header.innerHTML = `<h2>AI Recon Watcher</h2>`;
 
+  const headerActions = document.createElement("div");
+  headerActions.style.display = "flex";
+  headerActions.style.gap = "8px";
+
   const refreshBtn = document.createElement("button");
   refreshBtn.className = "arw-refresh";
   refreshBtn.textContent = "Refresh";
   refreshBtn.addEventListener("click", () => renderDashboard(sdk, container));
-  header.appendChild(refreshBtn);
+  headerActions.appendChild(refreshBtn);
 
+  const exportBtn = document.createElement("button");
+  exportBtn.className = "arw-refresh";
+  exportBtn.textContent = "Export Report";
+  exportBtn.addEventListener("click", () => {
+    const report = buildMarkdownReport({
+      totalCaptures: summary.totalCaptures,
+      totalEndpoints: summary.totalEndpoints,
+      aiRelatedEndpoints: summary.aiRelatedEndpoints,
+      domains,
+      endpoints,
+      captures,
+    });
+    downloadText(`ai-recon-watcher-report-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.md`, report);
+  });
+  headerActions.appendChild(exportBtn);
+
+  const clearBtn = document.createElement("button");
+  clearBtn.className = "arw-danger";
+  clearBtn.textContent = "Clear Data";
+  clearBtn.addEventListener("click", async () => {
+    const confirmed = window.confirm(
+      "Clear all captured requests/responses and discovered endpoints? Target scope domains are kept. This cannot be undone.",
+    );
+    if (!confirmed) return;
+    try {
+      await sdk.backend.clearCapturedData();
+      renderDashboard(sdk, container);
+    } catch (err) {
+      sdk.log.error(`[ai-recon-watcher] failed to clear data: ${String(err)}`);
+    }
+  });
+  headerActions.appendChild(clearBtn);
+
+  header.appendChild(headerActions);
   container.appendChild(header);
 
   const domainSection = targetDomainsSection(domains);
@@ -73,7 +112,7 @@ async function renderDashboard(sdk: FrontendSDK, container: HTMLElement) {
   const note = document.createElement("p");
   note.className = "arw-empty";
   note.textContent =
-    "Deeper signals (secrets, CORS, missing headers, framework fingerprints) are reported as Findings - check the Findings panel.";
+    "Deeper signals (secrets, CORS, missing headers, framework fingerprints, robots.txt anomalies, JS crypto/config disclosure) are reported as Findings - check the Findings panel.";
   container.appendChild(note);
 
   container.appendChild(endpointsTable(endpoints));

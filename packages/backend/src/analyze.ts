@@ -3,11 +3,14 @@ import type { Request, Response } from "caido:utils";
 import {
   AI_HEADER_TAGS,
   AI_JSON_FIELD_NAMES,
+  CHATBOT_CONFIG_PATTERN,
+  CRYPTO_INDICATORS,
   FRAMEWORK_SIGNATURES,
   MAX_ANALYZE_BODY_CHARS,
   ML_ENDPOINT_PATHS,
   SECRET_PATTERNS,
   SECURITY_HEADERS,
+  SPAM_ROBOTS_KEYWORDS,
 } from "./signatures";
 
 export type FindingCandidate = {
@@ -51,6 +54,11 @@ function findFrameworkSignature(text: string): string | undefined {
     if (patterns.some((p) => p.test(text))) return framework;
   }
   return undefined;
+}
+
+function findRobotsSpam(text: string): string[] {
+  const low = text.toLowerCase();
+  return SPAM_ROBOTS_KEYWORDS.filter((kw) => low.includes(kw));
 }
 
 export function analyzeExchange(
@@ -162,6 +170,37 @@ export function analyzeExchange(
         title: `Orchestration framework fingerprinted via error response: ${framework}`,
         description: `Stack trace/error signature for '${framework}' found in a ${response.getCode()} response on ${host}${path}.`,
         dedupeKey: `${host}-framework-${framework}`,
+      });
+    }
+  }
+
+  if (path === "/robots.txt" || path.endsWith("/robots.txt")) {
+    const spamHits = findRobotsSpam(analyzedText);
+    if (spamHits.length > 0) {
+      findings.push({
+        title: `robots.txt contains spam-indicator entries on ${host}`,
+        description: `Matched keywords: ${spamHits.join(", ")} - a classic sign of prior SEO-spam compromise; check whether the referenced content is still reachable.`,
+        dedupeKey: `${host}-robots-spam`,
+      });
+    }
+  }
+
+  const contentType = response.getHeader("content-type")?.[0] ?? "";
+  const looksLikeJs = /javascript|ecmascript/i.test(contentType) || /\.js(?:$|[?#])/i.test(path);
+  if (looksLikeJs) {
+    const cryptoHits = CRYPTO_INDICATORS.filter((indicator) => analyzedText.includes(indicator));
+    if (cryptoHits.length > 0) {
+      findings.push({
+        title: `Client-side crypto/obfuscation library referenced in JS on ${host}${path}`,
+        description: `Indicators: ${cryptoHits.join(", ")} - this target likely encrypts/obfuscates requests client-side; not a real confidentiality boundary since the routine ships in this same file.`,
+        dedupeKey: `${host}-${path}-js-crypto`,
+      });
+    }
+    if (CHATBOT_CONFIG_PATTERN.test(analyzedText)) {
+      findings.push({
+        title: `Chatbot/API configuration object found in JS on ${host}${path}`,
+        description: "Found a window.__*CONFIG*__/assistantEndpoint/apiBase-style pattern - may reveal internal endpoint paths or feature flags.",
+        dedupeKey: `${host}-${path}-js-config`,
       });
     }
   }

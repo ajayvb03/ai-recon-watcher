@@ -91,39 +91,73 @@ export function endpointsTable(rows: EndpointRow[]): HTMLElement {
     return wrapper;
   }
 
-  const table = document.createElement("table");
-  table.className = "arw-table";
-  table.innerHTML = `
-    <thead>
-      <tr>
-        <th>Method</th>
-        <th>Path</th>
-        <th>Host</th>
-        <th>Hits</th>
-        <th>AI-related</th>
-        <th>First seen</th>
-        <th>Last seen</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rows
-        .map(
-          (r) => `
-        <tr>
-          <td><span class="arw-method">${escapeHtml(r.method)}</span></td>
-          <td>${escapeHtml(r.path)}</td>
-          <td>${escapeHtml(r.host)}</td>
-          <td>${r.hit_count}</td>
-          <td>${r.ai_related ? '<span class="arw-badge">AI</span>' : ""}</td>
-          <td>${formatDate(r.first_seen)}</td>
-          <td>${formatDate(r.last_seen)}</td>
-        </tr>
-      `,
+  const search = document.createElement("input");
+  search.type = "text";
+  search.className = "arw-search";
+  search.placeholder = "Filter by host, path, or method...";
+  wrapper.appendChild(search);
+
+  const tableContainer = document.createElement("div");
+  wrapper.appendChild(tableContainer);
+
+  const renderRows = (query: string) => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter(
+          (r) =>
+            r.host.toLowerCase().includes(q) ||
+            r.path.toLowerCase().includes(q) ||
+            r.method.toLowerCase().includes(q),
         )
-        .join("")}
-    </tbody>
-  `;
-  wrapper.appendChild(table);
+      : rows;
+
+    tableContainer.innerHTML = "";
+    if (filtered.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "arw-empty";
+      empty.textContent = "No endpoints match your filter.";
+      tableContainer.appendChild(empty);
+      return;
+    }
+
+    const table = document.createElement("table");
+    table.className = "arw-table";
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Path</th>
+          <th>Host</th>
+          <th>Hits</th>
+          <th>AI-related</th>
+          <th>First seen</th>
+          <th>Last seen</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtered
+          .map(
+            (r) => `
+          <tr>
+            <td><span class="arw-method">${escapeHtml(r.method)}</span></td>
+            <td>${escapeHtml(r.path)}</td>
+            <td>${escapeHtml(r.host)}</td>
+            <td>${r.hit_count}</td>
+            <td>${r.ai_related ? '<span class="arw-badge">AI</span>' : ""}</td>
+            <td>${formatDate(r.first_seen)}</td>
+            <td>${formatDate(r.last_seen)}</td>
+          </tr>
+        `,
+          )
+          .join("")}
+      </tbody>
+    `;
+    tableContainer.appendChild(table);
+  };
+
+  search.addEventListener("input", () => renderRows(search.value));
+  renderRows("");
+
   return wrapper;
 }
 
@@ -143,37 +177,72 @@ export function capturesLog(rows: CaptureRow[]): HTMLElement {
     return wrapper;
   }
 
-  const list = document.createElement("div");
-  list.className = "arw-capture-list";
+  const search = document.createElement("input");
+  search.type = "text";
+  search.className = "arw-search";
+  search.placeholder = "Filter by host, path, method, or status...";
+  wrapper.appendChild(search);
 
-  for (const row of rows) {
-    const item = document.createElement("details");
-    item.className = "arw-capture-item";
+  const listContainer = document.createElement("div");
+  wrapper.appendChild(listContainer);
 
-    const summary = document.createElement("summary");
-    summary.innerHTML = `
-      <span class="arw-method">${escapeHtml(row.method)}</span>
-      <span>${escapeHtml(row.path)}</span>
-      <span class="arw-muted">${escapeHtml(row.host)}</span>
-      <span class="arw-status arw-status-${statusClass(row.status_code)}">${row.status_code}</span>
-      <span class="arw-muted">${row.roundtrip_ms}ms</span>
-      <span class="arw-muted">${formatDate(row.created_at)}</span>
-    `;
-    item.appendChild(summary);
+  const renderRows = (query: string) => {
+    const q = query.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter(
+          (row) =>
+            row.host.toLowerCase().includes(q) ||
+            row.path.toLowerCase().includes(q) ||
+            row.method.toLowerCase().includes(q) ||
+            String(row.status_code).includes(q),
+        )
+      : rows;
 
-    const pre = document.createElement("pre");
-    pre.className = "arw-json";
-    try {
-      pre.textContent = JSON.stringify(JSON.parse(row.data), null, 2);
-    } catch {
-      pre.textContent = row.data;
+    listContainer.innerHTML = "";
+    if (filtered.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "arw-empty";
+      empty.textContent = "No captures match your filter.";
+      listContainer.appendChild(empty);
+      return;
     }
-    item.appendChild(pre);
 
-    list.appendChild(item);
-  }
+    const list = document.createElement("div");
+    list.className = "arw-capture-list";
 
-  wrapper.appendChild(list);
+    for (const row of filtered) {
+      const item = document.createElement("details");
+      item.className = "arw-capture-item";
+
+      const summary = document.createElement("summary");
+      summary.innerHTML = `
+        <span class="arw-method">${escapeHtml(row.method)}</span>
+        <span>${escapeHtml(row.path)}</span>
+        <span class="arw-muted">${escapeHtml(row.host)}</span>
+        <span class="arw-status arw-status-${statusClass(row.status_code)}">${row.status_code}</span>
+        <span class="arw-muted">${row.roundtrip_ms}ms</span>
+        <span class="arw-muted">${formatDate(row.created_at)}</span>
+      `;
+      item.appendChild(summary);
+
+      const pre = document.createElement("pre");
+      pre.className = "arw-json";
+      try {
+        pre.textContent = JSON.stringify(JSON.parse(row.data), null, 2);
+      } catch {
+        pre.textContent = row.data;
+      }
+      item.appendChild(pre);
+
+      list.appendChild(item);
+    }
+
+    listContainer.appendChild(list);
+  };
+
+  search.addEventListener("input", () => renderRows(search.value));
+  renderRows("");
+
   return wrapper;
 }
 
@@ -331,4 +400,24 @@ export const STYLES = `
     border-radius: 999px;
   }
   #plugin--ai-recon-watcher .arw-domain-remove:hover { background: rgba(128,128,128,0.25); }
+  #plugin--ai-recon-watcher .arw-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(128,128,128,0.4);
+    background: transparent;
+    color: inherit;
+    font-size: 13px;
+  }
+  #plugin--ai-recon-watcher .arw-danger {
+    cursor: pointer;
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: 1px solid rgba(220,38,38,0.5);
+    background: transparent;
+    color: #ef4444;
+  }
+  #plugin--ai-recon-watcher .arw-danger:hover { background: rgba(220,38,38,0.15); }
 `;

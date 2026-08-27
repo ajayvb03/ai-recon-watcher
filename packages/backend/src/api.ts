@@ -65,6 +65,16 @@ export async function getRecentCaptures(sdk: SDK, limit: number = 50): Promise<C
   return stmt.all<CaptureRow>(safeLimit);
 }
 
+/**
+ * Wipes accumulated capture/endpoint data. Does NOT touch target_domains -
+ * the configured scope is an engagement setting, not data to reset.
+ */
+export async function clearCapturedData(sdk: SDK): Promise<void> {
+  const db = await getInitializedDb(sdk);
+  await db.exec("DELETE FROM captures;");
+  await db.exec("DELETE FROM endpoints_seen;");
+}
+
 export type TargetDomain = {
   host: string;
   added_at: string;

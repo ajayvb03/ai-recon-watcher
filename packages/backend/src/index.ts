@@ -4,6 +4,7 @@ import type { Request, Response } from "caido:utils";
 import { analyzeExchange } from "./analyze";
 import {
   addTargetDomain,
+  clearCapturedData,
   getEndpoints,
   getRecentCaptures,
   getSummary,
@@ -21,6 +22,7 @@ export type API = DefineAPI<{
   getTargetDomains: typeof getTargetDomains;
   addTargetDomain: typeof addTargetDomain;
   removeTargetDomain: typeof removeTargetDomain;
+  clearCapturedData: typeof clearCapturedData;
 }>;
 
 export function init(sdk: SDK<API>) {
@@ -89,6 +91,7 @@ export function init(sdk: SDK<API>) {
   sdk.api.register("getTargetDomains", getTargetDomains);
   sdk.api.register("addTargetDomain", addTargetDomain);
   sdk.api.register("removeTargetDomain", removeTargetDomain);
+  sdk.api.register("clearCapturedData", clearCapturedData);
 
   sdk.console.log("[ai-recon-watcher] initialized - passively watching traffic (scoped to configured target domains)");
 }
