@@ -1,6 +1,7 @@
 import type { SDK } from "caido:plugin";
 
 import { getInitializedDb } from "./db";
+import { processExchange } from "./process";
 
 export async function getSummary(sdk: SDK) {
   const db = await getInitializedDb(sdk);
@@ -73,6 +74,22 @@ export async function clearCapturedData(sdk: SDK): Promise<void> {
   const db = await getInitializedDb(sdk);
   await db.exec("DELETE FROM captures;");
   await db.exec("DELETE FROM endpoints_seen;");
+}
+
+/**
+ * Retroactively runs the same analyze-store-report path as the live
+ * watcher against an already-captured request/response pair, looked up by
+ * its Caido request ID. Used by the "Send to AI Recon Watcher" right-click
+ * command so adding a target gives an immediate result instead of only
+ * affecting future traffic.
+ */
+export async function analyzeRequestById(sdk: SDK, requestId: string): Promise<{ analyzed: boolean }> {
+  const result = await sdk.requests.get(requestId);
+  if (!result?.response) {
+    return { analyzed: false };
+  }
+  await processExchange(sdk, result.request, result.response);
+  return { analyzed: true };
 }
 
 export type TargetDomain = {

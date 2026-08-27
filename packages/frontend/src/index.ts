@@ -138,4 +138,63 @@ export const init = (sdk: FrontendSDK) => {
   sdk.sidebar.registerItem("AI Recon Watcher", "/ai-recon-watcher", {
     icon: "fas fa-satellite-dish",
   });
+
+  const SEND_TO_RECON_COMMAND = "ai-recon-watcher.send-to-recon";
+
+  sdk.commands.register(SEND_TO_RECON_COMMAND, {
+    name: "Send to AI Recon Watcher",
+    group: "AI Recon Watcher",
+    run: async (context) => {
+      const targets: { host: string; requestId?: string }[] = [];
+
+      if (context.type === "RequestRowContext") {
+        for (const r of context.requests) {
+          targets.push({ host: r.host, requestId: String(r.id) });
+        }
+      } else if (context.type === "RequestContext") {
+        const req = context.request;
+        targets.push({ host: req.host, requestId: "id" in req ? String(req.id) : undefined });
+      } else if (context.type === "ResponseContext") {
+        targets.push({ host: context.request.host, requestId: String(context.request.id) });
+      } else {
+        return;
+      }
+
+      const uniqueHosts = new Set(targets.map((t) => t.host));
+      for (const host of uniqueHosts) {
+        try {
+          await sdk.backend.addTargetDomain(host);
+        } catch (err) {
+          sdk.log.error(`[ai-recon-watcher] failed to add domain "${host}": ${String(err)}`);
+        }
+      }
+
+      for (const { requestId } of targets) {
+        if (!requestId) continue;
+        try {
+          await sdk.backend.analyzeRequestById(requestId);
+        } catch (err) {
+          sdk.log.error(`[ai-recon-watcher] failed to analyze request ${requestId}: ${String(err)}`);
+        }
+      }
+
+      sdk.navigation.goTo("/ai-recon-watcher");
+    },
+  });
+
+  sdk.menu.registerItem({
+    type: "RequestRow",
+    commandId: SEND_TO_RECON_COMMAND,
+    leadingIcon: "fas fa-satellite-dish",
+  });
+  sdk.menu.registerItem({
+    type: "Request",
+    commandId: SEND_TO_RECON_COMMAND,
+    leadingIcon: "fas fa-satellite-dish",
+  });
+  sdk.menu.registerItem({
+    type: "Response",
+    commandId: SEND_TO_RECON_COMMAND,
+    leadingIcon: "fas fa-satellite-dish",
+  });
 };

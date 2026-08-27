@@ -1,9 +1,9 @@
 import type { DefineAPI, SDK } from "caido:plugin";
 import type { Request, Response } from "caido:utils";
 
-import { analyzeExchange } from "./analyze";
 import {
   addTargetDomain,
+  analyzeRequestById,
   clearCapturedData,
   getEndpoints,
   getRecentCaptures,
@@ -11,7 +11,7 @@ import {
   getTargetDomains,
   removeTargetDomain,
 } from "./api";
-import { getInitializedDb, insertCapture, upsertEndpoint } from "./db";
+import { processExchange } from "./process";
 
 export * from "./api";
 
@@ -23,6 +23,7 @@ export type API = DefineAPI<{
   addTargetDomain: typeof addTargetDomain;
   removeTargetDomain: typeof removeTargetDomain;
   clearCapturedData: typeof clearCapturedData;
+  analyzeRequestById: typeof analyzeRequestById;
 }>;
 
 export function init(sdk: SDK<API>) {
@@ -38,47 +39,7 @@ export function init(sdk: SDK<API>) {
         return;
       }
 
-      const db = await getInitializedDb(sdk);
-
-      const responseBody = response.getBody();
-      const responseBodyText = responseBody ? responseBody.toText() : "";
-
-      const { data, aiRelated, findings } = analyzeExchange(request, response, responseBodyText);
-
-      const createdAt = new Date().toISOString();
-
-      await Promise.all([
-        insertCapture(db, {
-          requestId: String(request.getId()),
-          host: request.getHost(),
-          port: request.getPort(),
-          method: request.getMethod(),
-          path: request.getPath(),
-          query: request.getQuery(),
-          statusCode: response.getCode(),
-          roundtripMs: response.getRoundtripTime(),
-          createdAt,
-          data,
-        }),
-        upsertEndpoint(
-          db,
-          request.getHost(),
-          request.getMethod(),
-          request.getPath(),
-          createdAt,
-          aiRelated,
-        ),
-      ]);
-
-      for (const finding of findings) {
-        await sdk.findings.create({
-          title: finding.title,
-          description: finding.description,
-          reporter: "AI Recon Watcher",
-          dedupeKey: finding.dedupeKey,
-          request,
-        });
-      }
+      await processExchange(sdk, request, response);
     } catch (err) {
       const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
       sdk.console.log(`[ai-recon-watcher] error analyzing exchange: ${detail}`);
@@ -92,6 +53,7 @@ export function init(sdk: SDK<API>) {
   sdk.api.register("addTargetDomain", addTargetDomain);
   sdk.api.register("removeTargetDomain", removeTargetDomain);
   sdk.api.register("clearCapturedData", clearCapturedData);
+  sdk.api.register("analyzeRequestById", analyzeRequestById);
 
   sdk.console.log("[ai-recon-watcher] initialized - passively watching traffic (scoped to configured target domains)");
 }
