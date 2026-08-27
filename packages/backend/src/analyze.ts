@@ -3,6 +3,7 @@ import type { Request, Response } from "caido:utils";
 import {
   AI_HEADER_TAGS,
   AI_JSON_FIELD_NAMES,
+  AI_PATH_KEYWORDS,
   CHATBOT_CONFIG_PATTERN,
   CRYPTO_INDICATORS,
   FRAMEWORK_SIGNATURES,
@@ -234,6 +235,20 @@ export function analyzeExchange(
     });
   }
 
+  // Broader, lower-confidence than the exact-match list above: catches
+  // custom/proprietary chat APIs (not built on an OpenAI-compatible SDK)
+  // that use their own path naming, e.g. "/executechatserviceChat".
+  const lowerPath = path.toLowerCase();
+  const matchedKeyword = AI_PATH_KEYWORDS.find((kw) => lowerPath.includes(kw));
+  const isAiPathKeyword = !isMlEndpoint && matchedKeyword !== undefined;
+  if (isAiPathKeyword) {
+    findings.push({
+      title: `Possible AI/chat endpoint by path naming: ${method} ${path} on ${host}`,
+      description: `Path contains AI-related keyword '${matchedKeyword}' - lower confidence than an exact ML-endpoint match, verify manually.`,
+      dedupeKey: `${host}-${path}-ai-path-keyword`,
+    });
+  }
+
   if (response.getCode() >= 400) {
     const framework = findFrameworkSignature(analyzedText);
     if (framework) {
@@ -308,7 +323,7 @@ export function analyzeExchange(
 
   return {
     data,
-    aiRelated: isAiRelated || isMlEndpoint || hasAiHeaders || toolCalls.length > 0,
+    aiRelated: isAiRelated || isMlEndpoint || isAiPathKeyword || hasAiHeaders || toolCalls.length > 0,
     findings,
     toolCalls,
   };

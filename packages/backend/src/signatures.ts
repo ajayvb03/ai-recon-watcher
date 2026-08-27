@@ -80,6 +80,25 @@ export const ML_ENDPOINT_PATHS = [
   "/v1/models",
 ];
 
+// Lower-confidence, broader signal than ML_ENDPOINT_PATHS: many production
+// chatbots (internal/proprietary APIs, not built on an OpenAI-compatible
+// SDK) use their own path naming and will never exact-match the list above
+// - e.g. example.com's own "/restapi/soa2/27501/executechatserviceChat". Matching
+// on keywords anywhere in the path catches these without needing to know
+// the target's exact endpoint conventions in advance.
+export const AI_PATH_KEYWORDS = [
+  "chat",
+  "gpt",
+  "llm",
+  "assistant",
+  "chatbot",
+  "copilot",
+  "genchat",
+  "aichat",
+  "aigc",
+  "chatservice",
+];
+
 export const AI_HEADER_TAGS = ["ai-", "rag-", "mcp-", "llm-", "model-"];
 
 export const FRAMEWORK_SIGNATURES: Record<string, RegExp[]> = {
