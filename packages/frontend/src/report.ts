@@ -53,11 +53,11 @@ export function buildMarkdownReport(data: {
   if (data.skills.length === 0) {
     lines.push("(none detected yet)");
   } else {
-    lines.push("| Skill / Tool | Host | Calls | First seen | Last seen | Last arguments |");
-    lines.push("|---|---|---|---|---|---|");
+    lines.push("| Skill / Tool | Host | Calls | Seen in | First seen | Last seen | Last arguments |");
+    lines.push("|---|---|---|---|---|---|---|");
     for (const s of data.skills) {
       lines.push(
-        `| ${s.skill_name} | ${s.host} | ${s.call_count} | ${s.first_seen} | ${s.last_seen} | ${s.last_args.replace(/\|/g, "\\|")} |`,
+        `| ${s.skill_name} | ${s.host} | ${s.call_count} | ${s.last_source} | ${s.first_seen} | ${s.last_seen} | ${s.last_args.replace(/\|/g, "\\|")} |`,
       );
     }
   }

@@ -76,6 +76,7 @@ export async function initSchema(db: Database): Promise<void> {
       last_seen TEXT,
       call_count INTEGER,
       last_args TEXT,
+      last_source TEXT,
       PRIMARY KEY (host, skill_name)
     );
   `);
@@ -139,14 +140,16 @@ export async function upsertSkill(
   skillName: string,
   timestamp: string,
   lastArgs: string,
+  lastSource: string,
 ) {
   const stmt = await db.prepare(`
-    INSERT INTO skills_seen (host, skill_name, first_seen, last_seen, call_count, last_args)
-    VALUES (?, ?, ?, ?, 1, ?)
+    INSERT INTO skills_seen (host, skill_name, first_seen, last_seen, call_count, last_args, last_source)
+    VALUES (?, ?, ?, ?, 1, ?, ?)
     ON CONFLICT(host, skill_name) DO UPDATE SET
       last_seen = excluded.last_seen,
       call_count = call_count + 1,
-      last_args = excluded.last_args
+      last_args = excluded.last_args,
+      last_source = excluded.last_source
   `);
-  await stmt.run(host, skillName, timestamp, timestamp, lastArgs);
+  await stmt.run(host, skillName, timestamp, timestamp, lastArgs, lastSource);
 }

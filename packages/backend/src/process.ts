@@ -42,7 +42,9 @@ export async function processExchange(
       data,
     }),
     upsertEndpoint(db, host, request.getMethod(), request.getPath(), createdAt, aiRelated),
-    ...toolCalls.map((call) => upsertSkill(db, host, call.name, createdAt, call.argsSummary)),
+    ...toolCalls.map((call) =>
+      upsertSkill(db, host, call.name, createdAt, call.argsSummary, call.source),
+    ),
   ]);
 
   for (const finding of findings) {

@@ -65,6 +65,7 @@ function findRobotsSpam(text: string): string[] {
 export type ToolCallHit = {
   name: string;
   argsSummary: string;
+  source: "request" | "response";
 };
 
 const TOOL_NAME_KEYS = ["tool_name", "tool", "skill", "skill_name", "action"];
@@ -98,11 +99,13 @@ function extractSkillListNames(value: unknown): string[] {
 }
 
 /**
- * Recursively scans a parsed JSON body for tool/function/skill invocation
- * shapes - the model calling out to a tool is exactly the kind of
- * self-describing agent-capability signal that's valuable to map, per the
- * same logic that makes MCP tool schemas "free recon": the model itself
- * names the capability, no guessing required. Covers:
+ * Recursively scans a parsed JSON body (request OR response - tool/skill
+ * signals can appear in either, e.g. a client declaring which skills to
+ * enable, or conversation history round-tripped back with prior tool
+ * calls/results) for tool/function/skill invocation shapes. The model or
+ * client naming a capability is exactly the kind of self-describing
+ * agent-capability signal that's valuable to map, per the same logic that
+ * makes MCP tool schemas "free recon". Covers:
  *   - OpenAI-style: { type: "function", function: { name, arguments } }
  *   - OpenAI legacy: { function_call: { name, arguments } }
  *   - Anthropic-style: { type: "tool_use", name, input }
@@ -112,20 +115,25 @@ function extractSkillListNames(value: unknown): string[] {
  *   - Skills-list fields: useSkills/toolsUsed/etc holding an array (or a
  *     JSON-stringified array) of skill-name strings
  */
-function findToolCalls(node: unknown, depth = 0, results: ToolCallHit[] = []): ToolCallHit[] {
+function findToolCalls(
+  node: unknown,
+  source: "request" | "response",
+  depth = 0,
+  results: ToolCallHit[] = [],
+): ToolCallHit[] {
   if (depth > MAX_TOOL_SCAN_DEPTH || node === null || typeof node !== "object") {
     return results;
   }
 
   if (Array.isArray(node)) {
-    for (const item of node) findToolCalls(item, depth + 1, results);
+    for (const item of node) findToolCalls(item, source, depth + 1, results);
     return results;
   }
 
   const obj = node as Record<string, unknown>;
   const push = (name: unknown, args: unknown) => {
     if (typeof name === "string" && name.length > 0) {
-      results.push({ name, argsSummary: JSON.stringify(args ?? null).slice(0, 500) });
+      results.push({ name, argsSummary: JSON.stringify(args ?? null).slice(0, 500), source });
     }
   };
 
@@ -163,7 +171,7 @@ function findToolCalls(node: unknown, depth = 0, results: ToolCallHit[] = []): T
   }
 
   for (const value of Object.values(obj)) {
-    findToolCalls(value, depth + 1, results);
+    findToolCalls(value, source, depth + 1, results);
   }
 
   return results;
@@ -229,6 +237,13 @@ export function analyzeExchange(
     responseBodyText.length > MAX_ANALYZE_BODY_CHARS
       ? responseBodyText.slice(0, MAX_ANALYZE_BODY_CHARS)
       : responseBodyText;
+
+  const requestBody = request.getBody();
+  const requestBodyText = requestBody ? requestBody.toText() : "";
+  const analyzedRequestText =
+    requestBodyText.length > MAX_ANALYZE_BODY_CHARS
+      ? requestBodyText.slice(0, MAX_ANALYZE_BODY_CHARS)
+      : requestBodyText;
 
   const secretHits = findSecrets(analyzedText);
   for (const secretType of secretHits) {
@@ -327,14 +342,24 @@ export function analyzeExchange(
     }
   }
 
-  const toolCalls = findToolCalls(parsedBody);
+  let parsedRequestBody: unknown;
+  try {
+    parsedRequestBody = JSON.parse(analyzedRequestText);
+  } catch {
+    parsedRequestBody = undefined;
+  }
+
+  const toolCalls = [
+    ...findToolCalls(parsedRequestBody, "request"),
+    ...findToolCalls(parsedBody, "response"),
+  ];
   const seenToolNames = new Set<string>();
   for (const call of toolCalls) {
     if (seenToolNames.has(call.name)) continue;
     seenToolNames.add(call.name);
     findings.push({
       title: `AI tool/skill invoked: ${call.name} on ${host}`,
-      description: `Arguments observed: ${call.argsSummary}`,
+      description: `Arguments observed: ${call.argsSummary} (seen in: ${call.source})`,
       dedupeKey: `${host}-skill-${call.name}`,
     });
   }

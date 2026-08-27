@@ -73,12 +73,13 @@ export type SkillRow = {
   last_seen: string;
   call_count: number;
   last_args: string;
+  last_source: string;
 };
 
 export async function getSkills(sdk: SDK): Promise<SkillRow[]> {
   const db = await getInitializedDb(sdk);
   const stmt = await db.prepare(
-    `SELECT host, skill_name, first_seen, last_seen, call_count, last_args
+    `SELECT host, skill_name, first_seen, last_seen, call_count, last_args, last_source
      FROM skills_seen ORDER BY last_seen DESC LIMIT 200`,
   );
   return stmt.all<SkillRow>();

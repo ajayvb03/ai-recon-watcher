@@ -212,6 +212,7 @@ export function skillsTable(rows: SkillRow[]): HTMLElement {
           <th>Skill / Tool</th>
           <th>Host</th>
           <th>Calls</th>
+          <th>Seen in</th>
           <th>First seen</th>
           <th>Last seen</th>
           <th>Last arguments</th>
@@ -225,6 +226,7 @@ export function skillsTable(rows: SkillRow[]): HTMLElement {
             <td><span class="arw-method">${escapeHtml(r.skill_name)}</span></td>
             <td>${escapeHtml(r.host)}</td>
             <td>${r.call_count}</td>
+            <td>${escapeHtml(r.last_source)}</td>
             <td>${formatDate(r.first_seen)}</td>
             <td>${formatDate(r.last_seen)}</td>
             <td class="arw-muted">${escapeHtml(r.last_args)}</td>
