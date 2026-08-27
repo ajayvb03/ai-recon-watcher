@@ -1,0 +1,15 @@
+{
+  "name": "frontend",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "backend": "workspace:*"
+  },
+  "devDependencies": {
+    "@caido/sdk-backend": "0.57.0",
+    "@caido/sdk-frontend": "0.56.3-beta.2"
+  }
+}
