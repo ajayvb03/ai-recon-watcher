@@ -14,7 +14,7 @@ export default defineConfig({
   name: "AI Recon Watcher",
   description:
     "Passively watches HTTP traffic through Caido, stores every request/response as JSON, and flags tech-stack, AI-system, and attack-surface signals as Findings - no active probing.",
-  version: "0.7.1",
+  version: "0.7.2",
   author: {
     name: "ajayvb03",
     email: "ajaybechawade@gmail.com",

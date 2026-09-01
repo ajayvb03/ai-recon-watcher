@@ -338,7 +338,7 @@ export function analyzeExchange(
 
   // Broader, lower-confidence than the exact-match list above: catches
   // custom/proprietary chat APIs (not built on an OpenAI-compatible SDK)
-  // that use their own path naming, e.g. "/executechatserviceChat".
+  // that use their own path naming, e.g. "/executeChatTurn".
   const lowerPath = path.toLowerCase();
   const matchedKeyword = AI_PATH_KEYWORDS.find((kw) => lowerPath.includes(kw));
   const isAiPathKeyword = !isMlEndpoint && matchedKeyword !== undefined;
