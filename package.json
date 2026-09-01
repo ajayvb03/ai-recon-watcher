@@ -1,6 +1,7 @@
 {
   "name": "ai-recon-watcher",
-  "version": "0.1.0",
+  "version": "0.6.1",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "typecheck": "pnpm -r typecheck",

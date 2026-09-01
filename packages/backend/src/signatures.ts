@@ -26,9 +26,8 @@ export const SECRET_PATTERNS: Record<string, RegExp> = {
 };
 
 // Plain model/provider disclosure fields, plus RAG source/citation metadata
-// fields - the latter is what let us map a target's knowledge-base structure
-// (document filenames, chunk IDs) during manual recon on examplecorp/examplelabs-style
-// targets without ever asking "what documents do you have".
+// fields - the latter can map a target's knowledge-base structure (document
+// filenames, chunk IDs) without ever asking "what documents do you have".
 export const AI_JSON_FIELD_NAMES = new Set([
   "model",
   "rag",
@@ -84,9 +83,9 @@ export const ML_ENDPOINT_PATHS = [
 // Lower-confidence, broader signal than ML_ENDPOINT_PATHS: many production
 // chatbots (internal/proprietary APIs, not built on an OpenAI-compatible
 // SDK) use their own path naming and will never exact-match the list above
-// - e.g. example.com's own "/restapi/soa2/27501/executechatserviceChat". Matching
-// on keywords anywhere in the path catches these without needing to know
-// the target's exact endpoint conventions in advance.
+// - e.g. a vendor-specific "/restapi/soa2/.../executeChatTurn"-style route.
+// Matching on keywords anywhere in the path catches these without needing
+// to know the target's exact endpoint conventions in advance.
 export const AI_PATH_KEYWORDS = [
   "chat",
   "gpt",

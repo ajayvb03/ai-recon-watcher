@@ -118,9 +118,9 @@ export type ToolCallHit = {
 const TOOL_NAME_KEYS = ["tool_name", "tool", "skill", "skill_name", "action"];
 const TOOL_ARGS_KEYS = ["arguments", "input", "parameters", "args"];
 // Fields that hold a *list* of skill/tool names already used for this turn,
-// as either a native array or (very commonly, seen on real custom chat
-// backends like example.com's chatservice) a JSON-stringified array packed into a
-// string value, e.g. "useSkills": "[\"travel_web_search\", \"big_search\"]".
+// as either a native array or (commonly seen on custom/proprietary chat
+// backends) a JSON-stringified array packed into a string value, e.g.
+// "useSkills": "[\"web_search\", \"weather_lookup\"]".
 const SKILLS_LIST_KEYS = [
   "useSkills",
   "usedSkills",
