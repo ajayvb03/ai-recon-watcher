@@ -4,6 +4,7 @@
     "module": "esnext",
     "lib": ["ESNext"],
 
+    "jsx": "preserve",
     "noImplicitAny": true,
     "noUncheckedIndexedAccess": true,
     "strict": true,

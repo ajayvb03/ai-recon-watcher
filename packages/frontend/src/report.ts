@@ -1,10 +1,10 @@
-import type { CaptureRow, EndpointRow, SkillRow, TargetDomain } from "backend";
+import type { CaptureRow, EndpointRow, SkillRow } from "backend";
 
 export function buildMarkdownReport(data: {
   totalCaptures: number;
   totalEndpoints: number;
   aiRelatedEndpoints: number;
-  domains: TargetDomain[];
+  scopeName?: string;
   endpoints: EndpointRow[];
   captures: CaptureRow[];
   skills: SkillRow[];
@@ -15,14 +15,8 @@ export function buildMarkdownReport(data: {
   lines.push(`Generated: ${new Date().toISOString()}`);
   lines.push("");
 
-  lines.push("## Target Scope");
-  if (data.domains.length === 0) {
-    lines.push("- (none configured)");
-  } else {
-    for (const d of data.domains) {
-      lines.push(`- ${d.host} (added ${d.added_at})`);
-    }
-  }
+  lines.push("## Active Scope");
+  lines.push(`- ${data.scopeName ?? "(none selected in Caido)"}`);
   lines.push("");
 
   lines.push("## Summary");

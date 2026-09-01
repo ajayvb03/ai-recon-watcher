@@ -62,13 +62,6 @@ export async function initSchema(db: Database): Promise<void> {
   `);
 
   await db.exec(`
-    CREATE TABLE IF NOT EXISTS target_domains (
-      host TEXT PRIMARY KEY,
-      added_at TEXT
-    );
-  `);
-
-  await db.exec(`
     CREATE TABLE IF NOT EXISTS skills_seen (
       host TEXT,
       skill_name TEXT,

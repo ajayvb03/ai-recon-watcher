@@ -3,13 +3,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "backend": "workspace:*"
+    "@caido/primevue": "0.1.2",
+    "backend": "workspace:*",
+    "primevue": "4.1.0",
+    "vue": "3.4.37"
   },
   "devDependencies": {
     "@caido/sdk-backend": "0.57.0",
-    "@caido/sdk-frontend": "0.56.3-beta.2"
+    "@caido/sdk-frontend": "0.56.3-beta.2",
+    "vue-tsc": "2.0.29"
   }
 }
