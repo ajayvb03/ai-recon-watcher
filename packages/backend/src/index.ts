@@ -25,11 +25,17 @@ export type API = DefineAPI<{
 export function init(sdk: SDK<API>) {
   sdk.events.onInterceptResponse(async (_sdk, request: Request, response: Response) => {
     try {
-      // Scope gate: only watch traffic Caido's own active Scope considers in
-      // scope. With no scope selected, inScope() has nothing to match against
-      // and this plugin must never passively log traffic just because it
-      // happens to pass through Caido.
-      if (!sdk.requests.inScope(request)) {
+      // Scope gate: only watch traffic matching one of Caido's saved Scopes.
+      // inScope(request) with no scopes argument falls back to whatever
+      // Caido considers its ambient "default" - which, with nothing defined,
+      // resolves permissively (everything matches) rather than restrictively.
+      // That's the right default for Caido's own history/sitemap filtering,
+      // but wrong for a passive watcher that must never capture outside an
+      // explicit engagement boundary. So: fail closed when no Scope exists at
+      // all, and otherwise check explicitly against every saved Scope rather
+      // than relying on whichever one happens to be selected in the switcher.
+      const scopes = await sdk.scope.getAll();
+      if (scopes.length === 0 || !sdk.requests.inScope(request, scopes)) {
         return;
       }
 

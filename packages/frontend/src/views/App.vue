@@ -2,7 +2,7 @@
 import { type CaptureRow, type EndpointRow, type SkillRow } from "backend";
 import { type Scope } from "@caido/sdk-frontend";
 import Button from "primevue/button";
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 
 import { useSDK } from "@/plugins/sdk";
 import { buildMarkdownReport, downloadText } from "@/report";
@@ -24,12 +24,13 @@ const aiRelatedEndpoints = ref(0);
 const endpoints = ref<EndpointRow[]>([]);
 const captures = ref<CaptureRow[]>([]);
 const skills = ref<SkillRow[]>([]);
-const currentScope = ref<Scope | undefined>(undefined);
+const scopes = ref<Scope[]>([]);
 
 const load = async () => {
   loading.value = true;
   loadError.value = undefined;
   try {
+    scopes.value = sdk.scopes.getScopes();
     const [summary, endpointRows, captureRows, skillRows] = await Promise.all([
       sdk.backend.getSummary(),
       sdk.backend.getEndpoints(),
@@ -55,7 +56,7 @@ const onExport = () => {
     totalCaptures: totalCaptures.value,
     totalEndpoints: totalEndpoints.value,
     aiRelatedEndpoints: aiRelatedEndpoints.value,
-    scopeName: currentScope.value?.name,
+    scopeName: scopes.value.map((s) => s.name).join(", ") || undefined,
     endpoints: endpoints.value,
     captures: captures.value,
     skills: skills.value,
@@ -78,18 +79,8 @@ const onClear = async () => {
   }
 };
 
-let scopeHandle: { stop: () => void } | undefined;
-
 onMounted(() => {
-  currentScope.value = sdk.scopes.getCurrentScope();
-  scopeHandle = sdk.scopes.onCurrentScopeChange(() => {
-    currentScope.value = sdk.scopes.getCurrentScope();
-  });
   void load();
-});
-
-onUnmounted(() => {
-  scopeHandle?.stop();
 });
 </script>
 
@@ -108,7 +99,7 @@ onUnmounted(() => {
     <p v-else-if="loading" class="text-sm opacity-60">Loading...</p>
 
     <template v-else>
-      <ScopeBanner :scope="currentScope" />
+      <ScopeBanner :scopes="scopes" />
 
       <StatCards
         :total-captures="totalCaptures"

@@ -36,20 +36,21 @@ model — this one's job is to make sense of what's already there.
 ## Scope — uses Caido's built-in Scope, not its own
 
 The plugin has no scope system of its own — it uses Caido's native **Scope** feature
-(`sdk.requests.inScope`). Traffic outside your currently selected Scope is ignored entirely; it's
-never captured in the first place, not filtered out after the fact. With no Scope selected,
-nothing is captured. This keeps the plugin from silently hoovering up every domain your browser
-happens to talk to, and means Scope is managed in one place across all of Caido, not duplicated
-per-plugin.
+(`sdk.requests.inScope`). Traffic is only captured if it matches at least one Scope you've saved
+in Caido (Proxy → Scopes); with zero Scopes defined, nothing is captured. This keeps the plugin
+from silently hoovering up every domain your browser happens to talk to, and means Scope is
+managed in one place across all of Caido, not duplicated per-plugin.
 
 ## Using it
 
 1. Install the plugin (see Installation below) and open the **AI Recon Watcher** tab from the
    Caido sidebar.
-2. Select (or create) a **Scope** in Caido that covers the target you're testing.
+2. Create a **Scope** in Caido (Proxy → Scopes) with an allowlist covering the target you're
+   testing.
 3. Browse the target normally, or trigger requests through Caido's Proxy/Replay as usual. Traffic
-   inside the active Scope is captured and analyzed automatically. The dashboard shows which Scope
-   is currently active, so it's obvious when nothing is being captured because none is selected.
+   matching any saved Scope is captured and analyzed automatically. The dashboard lists which
+   Scope(s) it's matching against, so it's obvious when nothing is being captured because none
+   exist yet.
 4. Already have a request in Caido's history from before you set your Scope? Right-click it (in
    the request list, the request editor, or a response) and choose **Send to AI Recon Watcher** —
    it analyzes that exchange immediately regardless of Scope, so you don't have to wait for new
