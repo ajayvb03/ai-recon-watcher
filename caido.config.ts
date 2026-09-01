@@ -9,8 +9,8 @@ export default defineConfig({
     "Passively watches HTTP traffic through Caido, stores every request/response as JSON, and flags tech-stack, AI-system, and attack-surface signals as Findings - no active probing.",
   version: "0.6.1",
   author: {
-    name: "Security Lab",
-    email: "security-lab@example.com",
+    name: "ajayvb03",
+    email: "ajaybechawade@gmail.com",
   },
   plugins: [
     {
