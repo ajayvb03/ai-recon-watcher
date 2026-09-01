@@ -16,7 +16,7 @@ export function buildMarkdownReport(data: {
   lines.push("");
 
   lines.push("## Active Scope");
-  lines.push(`- ${data.scopeName ?? "(none selected in Caido)"}`);
+  lines.push(`- ${data.scopeName ?? "(no Scope defined in Caido)"}`);
   lines.push("");
 
   lines.push("## Summary");

@@ -97,11 +97,11 @@ export async function clearCapturedData(sdk: SDK): Promise<void> {
 }
 
 /**
- * Retroactively runs the same analyze-store-report path as the live
- * watcher against an already-captured request/response pair, looked up by
- * its Caido request ID. Used by the "Send to AI Recon Watcher" right-click
- * command so adding a target gives an immediate result instead of only
- * affecting future traffic.
+ * Retroactively runs the same analyze-store-report path as the live watcher
+ * against an already-captured request/response pair, looked up by its Caido
+ * request ID. Used by the "Send to AI Recon Watcher" right-click command, so
+ * it deliberately bypasses the Scope gate in index.ts - a manual, explicit
+ * action is its own authorization, unlike the passive live-traffic listener.
  */
 export async function analyzeRequestById(sdk: SDK, requestId: string): Promise<{ analyzed: boolean }> {
   const result = await sdk.requests.get(requestId);

@@ -5,8 +5,8 @@ import type { Database } from "sqlite";
  * Shared, memoized handle to the plugin's database.
  *
  * This MUST be cached and shared across every call site (the traffic
- * interceptor and all three dashboard RPC methods). Without sharing, each
- * concurrent call (e.g. the dashboard's Promise.all of three RPC calls)
+ * interceptor and every dashboard RPC method). Without sharing, each
+ * concurrent call (e.g. the dashboard's Promise.all of several RPC calls)
  * independently opens its own connection and races to run
  * CREATE TABLE IF NOT EXISTS against the same file at the same time,
  * which throws SQLITE_BUSY ("database is locked").

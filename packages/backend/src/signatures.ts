@@ -96,7 +96,6 @@ export const AI_PATH_KEYWORDS = [
   "genchat",
   "aichat",
   "aigc",
-  "chatservice",
 ];
 
 export const AI_HEADER_TAGS = ["ai-", "rag-", "mcp-", "llm-", "model-"];
